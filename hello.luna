@@ -4,6 +4,7 @@ fn main {
   x := 1.23
 }
 
-fn hello(x str) -> str {
-  return "hello {x}"
+fn hello(x str, y int) -> str {
+  return "hello {x} and {y}"
 }
+

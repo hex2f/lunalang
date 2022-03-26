@@ -1,32 +1,8 @@
 #include <iostream>
 #include <fstream>
-#include<vector>
+#include <vector>
 
-enum Kind {
-  ID,
-  NUM,
-  OP,
-  ASSIGN,
-  QUOTE_STRING,
-  ARROW,
-  COMMENT,
-  KEYWORD,
-  LPAREN,
-  RPAREN,
-  LBRACE,
-  RBRACE,
-};
-
-const std::string keywords[3] = {
-  "fn", "str", "int"
-};
-
-struct Token {
-  Kind kind;
-  std::string value;
-  int row = -1;
-  int col = -1;
-};
+#include "lexer.hpp"
 
 std::vector<Token> lex(std::string source) {
   std::vector<Token> tokens;
@@ -34,6 +10,7 @@ std::vector<Token> lex(std::string source) {
   bool readingString = false;
   bool readingComment = false;
   bool readingNum = false;
+  bool readingStringExpr = false;
   int row = 1;
   int pcol = 0;
   int col = 0;
@@ -56,7 +33,9 @@ std::vector<Token> lex(std::string source) {
   };
 
   auto pushback = [&]() {
-    tokens.push_back(currentToken);
+    if (currentToken.value.size() > 0) {
+      tokens.push_back(currentToken);
+    }
     currentToken = {};
   };
 
@@ -70,6 +49,7 @@ std::vector<Token> lex(std::string source) {
       readingString = false;
       readingComment = false;
       readingNum = false;
+      readingStringExpr = false;
       if (currentToken.value.size() > 0) {
         tokens.push_back(currentToken);
         currentToken = {};
@@ -83,11 +63,19 @@ std::vector<Token> lex(std::string source) {
       currentToken.row = row;
     }
 
+    if (readingStringExpr && i > 0 && source[i - 1] != '\\' && source[i] == '}') {
+      pushback();
+      readingStringExpr = false;
+      startNewToken(STRING_EXPR_END, "}", true);
+      readingString = true;
+      startNewToken(QUOTE_STRING, "");
+      i++;
+      continue;
+    }
+
     if (((source[i] == '\t' || source[i] == ' ') && !readingComment && !readingString)) {
       i++;
-      if (currentToken.value.size() > 0) {
-        pushback();
-      }
+      pushback();
       continue;
     }
 
@@ -120,6 +108,14 @@ std::vector<Token> lex(std::string source) {
       }
       i++;
       continue;
+    }
+
+    if (readingString && i > 0 && source[i-1] != '\\' && source[i] == '{') {
+      pushback();
+      readingString = false;
+      readingStringExpr = true;
+      startNewToken(STRING_EXPR_START, "{", true);
+      i++;
     }
 
     if (readingString) {
@@ -191,6 +187,12 @@ std::vector<Token> lex(std::string source) {
       continue;
     }
 
+    if (source[i] == ',') {
+      startNewToken(COMMA, ",", true);
+      i++;
+      continue;
+    }
+
     if (i > 0 && source[i-1] == ':' && source[i] == '=') {
       startNewToken(ASSIGN, ":=", true);
       i++;
@@ -225,11 +227,13 @@ std::vector<Token> lex(std::string source) {
         k++;
       }
       bool found = false;
-      for (std::string keyword : keywords) {
-        if (word == keyword) {
-          startNewToken(KEYWORD, word, true);
-          found = true;
-          break;
+      if (word.size() > 0) {
+        for (std::string keyword : keywords) {
+          if (word == keyword) {
+            startNewToken(KEYWORD, word, true);
+            found = true;
+            break;
+          }
         }
       }
       if (!found && k > 0) {
@@ -257,33 +261,57 @@ std::vector<Token> lex(std::string source) {
   
 }
 
-int main(int argc, char *argv[]) {
-  // read file at argv[1]
-  // lex
-  // print tokens
-  std::cout << "You have entered " << argc << " arguments:" << "\n";
-
-  for (int i = 0; i < argc; ++i)
-    std::cout << argv[i] << "\n";
-
-  std::ifstream sourceFile(argv[1]);
-  std::string sourceText;
-  std::string sourceLine;
-
-  while (std::getline(sourceFile, sourceLine)) {
-    std::cout << sourceLine << "\n";
-    sourceText += sourceLine + "\n";
+std::string KindName(Kind kind) {
+  std::string tokenKindName = "";
+  switch (kind) {
+    case ID:
+      tokenKindName += "ID";
+      break;
+    case KEYWORD:
+      tokenKindName += "KEYWORD";
+      break;
+    case NUM:
+      tokenKindName += "NUM";
+      break;
+    case LPAREN:
+      tokenKindName += "LPAREN";
+      break;
+    case RPAREN:
+      tokenKindName += "RPAREN";
+      break;
+    case LBRACE:
+      tokenKindName += "LBRACE";
+      break;
+    case RBRACE:
+      tokenKindName += "RBRACE";
+      break;
+    case QUOTE_STRING:
+      tokenKindName += "QUOTE_STRING";
+      break;
+    case STRING_EXPR_START:
+      tokenKindName += "STRING_EXPR_START";
+      break;
+    case STRING_EXPR_END:
+      tokenKindName += "STRING_EXPR_END";
+      break;
+    case ASSIGN:
+      tokenKindName += "ASSIGN";
+      break;
+    case ARROW:
+      tokenKindName += "ARROW";
+      break;
+    case COMMA:
+      tokenKindName += "COMMA";
+      break;
+    case COMMENT:
+      tokenKindName += "COMMENT";
+      break;
+    case OP:
+      tokenKindName += "OP";
+      break;
+    default:
+      tokenKindName += "UNKNOWN";
+      break;
   }
-
-  std::cout << "\nLexing...\n";
-
-  std::vector<Token> tokens = lex(sourceText);
-
-  std::cout << "Lexed " << tokens.size() << " tokens:\n";
-
-  for (Token token : tokens) {
-    std::cout << "Token: " << token.kind << " \"" << token.value << "\" at " << token.row << ":" << token.col << "\n";
-  }
-
-  return 0;
+  return tokenKindName;
 }
