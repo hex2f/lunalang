@@ -1,10 +1,14 @@
 // entry
 fn main {
-  print("hello 2.3 world")
   x := 1.23
+  print("hello {x} world", x + 2 + 3, 2)
 }
 
-fn hello(x str, y int) -> str {
-  return "hello {x} and {y}"
-}
+//fn hello(a str, b int, c str, d int) -> str {
+//  return "hello {a} and {b}" + "!!!" + c + ", also {d}"
+//}
+
+//fn default_hello -> int {
+//  return 1 + 1.2 + 2
+//}
 

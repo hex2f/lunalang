@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "lexer.hpp"
+#include "parser.hpp"
 
 int main(int argc, char *argv[]) {
   // read file at argv[1]
@@ -44,6 +45,9 @@ int main(int argc, char *argv[]) {
 
     std::cout << colrow << tokenKindName << " " << token.value << "\n";
   }
+
+  std::cout << "\nParsing...\n";
+  Module mod = parse(tokens);
 
   return 0;
 }

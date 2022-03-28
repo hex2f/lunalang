@@ -1,0 +1,1 @@
+g++ -fpermissive --std=c++2a main.cpp lexer.cpp parser.cpp -o lunac && ./lunac hello.luna

@@ -4,6 +4,10 @@
 
 #include "lexer.hpp"
 
+#define next()\
+  i++;\
+  continue;
+
 std::vector<Token> lex(std::string source) {
   std::vector<Token> tokens;
 
@@ -54,6 +58,7 @@ std::vector<Token> lex(std::string source) {
         tokens.push_back(currentToken);
         currentToken = {};
       }
+      startNewToken(NEWLINE, "", true);
     } else {
       col = i - pcol;
     }
@@ -66,9 +71,8 @@ std::vector<Token> lex(std::string source) {
     if (readingStringExpr && i > 0 && source[i - 1] != '\\' && source[i] == '}') {
       pushback();
       readingStringExpr = false;
-      startNewToken(STRING_EXPR_END, "}", true);
       readingString = true;
-      startNewToken(QUOTE_STRING, "");
+      startNewToken(OP, "+");
       i++;
       continue;
     }
@@ -100,6 +104,10 @@ std::vector<Token> lex(std::string source) {
 
     if (source[i] == '"') {
       if (readingString) {
+        // remove unused token after string expr
+        if (currentToken.kind == OP && currentToken.value == "+") {
+          currentToken = {};
+        }
         pushback();
         readingString = false;
       } else {
@@ -114,11 +122,14 @@ std::vector<Token> lex(std::string source) {
       pushback();
       readingString = false;
       readingStringExpr = true;
-      startNewToken(STRING_EXPR_START, "{", true);
+      startNewToken(OP, "+", true);
       i++;
     }
 
     if (readingString) {
+      if (currentToken.kind != QUOTE_STRING) {
+        startNewToken(QUOTE_STRING, "");
+      }
       currentToken.value += source[i];
       i++;
       continue;
@@ -126,38 +137,7 @@ std::vector<Token> lex(std::string source) {
 
     // TODO: very cursed, std::string() didnt work... fix thiss
     if (source[i] >= '0' && source[i] <= '9') {
-      switch (source[i]) {
-        case '0':
-          startNewToken(NUM, "0");
-          break;
-        case '1':
-          startNewToken(NUM, "1");
-          break;
-        case '2':
-          startNewToken(NUM, "2");
-          break;
-        case '3':
-          startNewToken(NUM, "3");
-          break;
-        case '4': 
-          startNewToken(NUM, "4");
-          break;
-        case '5':
-          startNewToken(NUM, "5");
-          break;
-        case '6':
-          startNewToken(NUM, "6");
-          break;
-        case '7':
-          startNewToken(NUM, "7");
-          break;
-        case '8':
-          startNewToken(NUM, "8");
-          break;
-        case '9':
-          startNewToken(NUM, "9");
-          break;
-      }
+      startNewToken(NUM, std::string(1, source[i]));
       readingNum = true;
       i++;
       continue;
@@ -212,11 +192,11 @@ std::vector<Token> lex(std::string source) {
       continue;
     }
 
-    if (source[i] == '-' || source[i] == '+' || source[i] == '*' || source[i] == '/' || source[i] == '%') {
-      startNewToken(OP, std::string(source[i], true));
-      i++;
-      continue;
-    }
+    if (source[i] == '-') { startNewToken(OP, "-", true); next(); }
+    if (source[i] == '+') { startNewToken(OP, "+", true); next(); }
+    if (source[i] == '/') { startNewToken(OP, "/", true); next(); }
+    if (source[i] == '*') { startNewToken(OP, "*", true); next(); }
+    if (source[i] == '%') { startNewToken(OP, "%", true); next(); }
 
     if (i > 1 && (source[i-1] == '\n' || source[i-1] == ' ')) {
       std::string word = "";
@@ -288,12 +268,6 @@ std::string KindName(Kind kind) {
     case QUOTE_STRING:
       tokenKindName += "QUOTE_STRING";
       break;
-    case STRING_EXPR_START:
-      tokenKindName += "STRING_EXPR_START";
-      break;
-    case STRING_EXPR_END:
-      tokenKindName += "STRING_EXPR_END";
-      break;
     case ASSIGN:
       tokenKindName += "ASSIGN";
       break;
@@ -309,9 +283,29 @@ std::string KindName(Kind kind) {
     case OP:
       tokenKindName += "OP";
       break;
+    case NEWLINE:
+      tokenKindName += "NEWLINE";
+      break;
     default:
       tokenKindName += "UNKNOWN";
       break;
   }
   return tokenKindName;
+}
+
+std::runtime_error errorAt(Token *token, std::string message) {
+  std::string error = "";
+  error += "[Error@" + std::to_string(token->row) + ":" + std::to_string(token->col) + "]" + message + "\n";
+  return std::runtime_error(error);
+}
+
+Keyword getKeyword(Token *token) {
+  std::string keyword = token->value;
+  if (keyword == "fn") {
+    return FN;
+  } else if (keyword == "return") {
+    return RETURN;
+  }
+
+  throw errorAt(token, "Unknown keyword: " + keyword);
 }

@@ -4,8 +4,6 @@ enum Kind {
   OP,
   ASSIGN,
   QUOTE_STRING,
-  STRING_EXPR_START,
-  STRING_EXPR_END,
   ARROW,
   COMMA,
   COMMENT,
@@ -14,6 +12,25 @@ enum Kind {
   RPAREN,
   LBRACE,
   RBRACE,
+  NEWLINE
+};
+
+enum Operator {
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  MOD,
+  BSL, // Bit shift left
+  BSR  // Bit shift right
+};
+
+enum Comp {
+  EQ,
+  GT,
+  LT,
+  GTE,
+  LTE
 };
 
 const std::string keywords[3] = {
@@ -27,5 +44,14 @@ struct Token {
   int col = -1;
 };
 
+enum Keyword {
+  FN,
+  RETURN,
+};
+
+Keyword getKeyword(Token *token);
+
 std::vector<Token> lex(std::string source);
 std::string KindName(Kind kind);
+
+std::runtime_error errorAt(Token *token, std::string message);
